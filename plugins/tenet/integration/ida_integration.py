@@ -313,9 +313,6 @@ class TenetIDA(TenetCore):
         (Event) IDA is about to show a popup for the given TWidget.
         """
 
-        # TODO: return if plugin/trace is not active
-        pass
-
         # fetch the (IDA) window type (eg, disas, graph, hex ...)
         view_type = ida_kernwin.get_widget_type(widget)
 

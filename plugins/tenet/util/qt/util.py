@@ -59,9 +59,7 @@ def normalize_font(font_size):
     """
     Normalize the given font size based on the system DPI.
     """
-    if sys.platform == "darwin": # macos is lame
-        return font_size + 2
-    return font_size
+    return font_size + 2 if sys.platform == "darwin" else font_size
 
 def get_qmainwindow():
     """

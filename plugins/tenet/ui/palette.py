@@ -65,11 +65,9 @@ class PluginPalette(object):
         """
         Return the user theme directory.
         """
-        theme_directory = os.path.join(
-            disassembler.get_disassembler_user_directory(),
-            "tenet_themes"
+        return os.path.join(
+            disassembler.get_disassembler_user_directory(), "tenet_themes"
         )
-        return theme_directory
 
     #----------------------------------------------------------------------
     # Callbacks
@@ -158,7 +156,7 @@ class PluginPalette(object):
             self._last_directory = os.path.dirname(filename) + os.sep
 
         # log the captured (selected) filenames from the dialog
-        logger.debug("Captured filename from theme file dialog: '%s'" % filename)
+        logger.debug(f"Captured filename from theme file dialog: '{filename}'")
 
         #
         # before applying the selected plugin theme, we should ensure that
@@ -306,13 +304,7 @@ class PluginPalette(object):
 
         if self._user_qt_hint == self._user_disassembly_hint:
             theme_name = self._default_themes[self._user_qt_hint]
-            logger.debug(" - No preferred theme, hints suggest theme '%s'" % theme_name)
-
-        #
-        # the UI hints don't match, so the user is using some ... weird
-        # mismatched theming in their disassembler. let's just default to
-        # the 'dark' plugin theme as it is more robust
-        #
+            logger.debug(f" - No preferred theme, hints suggest theme '{theme_name}'")
 
         else:
             theme_name = self._default_themes["dark"]
@@ -334,7 +326,7 @@ class PluginPalette(object):
         active_filepath = os.path.join(user_theme_dir, ".active_theme")
         try:
             theme_name = open(active_filepath).read().strip()
-            logger.debug(" - Got '%s' from .active_theme" % theme_name)
+            logger.debug(f" - Got '{theme_name}' from .active_theme")
         except (OSError, IOError):
             return False
 
@@ -366,7 +358,7 @@ class PluginPalette(object):
         """
         Pefrom rudimentary theme validation.
         """
-        logger.debug(" - Validating theme fields for '%s'..." % theme["name"])
+        logger.debug(f""" - Validating theme fields for '{theme["name"]}'...""")
         user_fields = theme.get("fields", None)
         if not user_fields:
             pmsg("Could not find theme 'fields' definition")
@@ -375,7 +367,7 @@ class PluginPalette(object):
         # check that all the 'required' fields exist in the given theme
         for field in self._required_fields:
             if field not in user_fields:
-                pmsg("Could not find required theme field '%s'" % field)
+                pmsg(f"Could not find required theme field '{field}'")
                 return False
 
         # theme looks good enough for now...
@@ -390,20 +382,18 @@ class PluginPalette(object):
         try:
             theme = self._read_theme(filepath)
 
-        # reading file from dsik failed
         except OSError:
-            pmsg("Could not open theme file at '%s'" % filepath)
+            pmsg(f"Could not open theme file at '{filepath}'")
             return False
 
-        # JSON decoding failed
         except JSONDecodeError as e:
-            pmsg("Failed to decode theme '%s' to json" % filepath)
-            pmsg(" - " + str(e))
+            pmsg(f"Failed to decode theme '{filepath}' to json")
+            pmsg(f" - {str(e)}")
             return False
 
         # do some basic sanity checking on the given theme file
         if not self._validate_theme(theme):
-            pmsg("Failed to validate theme '%s'" % filepath)
+            pmsg(f"Failed to validate theme '{filepath}'")
             return False
 
         # try applying the loaded theme to the plugin
@@ -421,22 +411,18 @@ class PluginPalette(object):
         """
         Parse the plugin theme file from the given filepath.
         """
-        logger.debug(" - Reading theme file '%s'..." % filepath)
+        logger.debug(f" - Reading theme file '{filepath}'...")
 
         # attempt to load the theme file contents from disk
         raw_theme = open(filepath, "r").read()
 
-        # convert the theme file contents to a json object/dict
-        theme = json.loads(raw_theme)
-
-        # all good
-        return theme
+        return json.loads(raw_theme)
 
     def _apply_theme(self, theme):
         """
         Apply the given theme definition to the plugin.
         """
-        logger.debug(" - Applying theme '%s'..." % theme["name"])
+        logger.debug(f""" - Applying theme '{theme["name"]}'...""")
         colors = theme["colors"]
 
         for field_name, color_entry in theme["fields"].items():
@@ -470,10 +456,7 @@ class PluginPalette(object):
         assert len(color_entry) == 2, "Malformed color entry, must be (dark, light)"
         dark, light = color_entry
 
-        if self._user_qt_hint == "dark":
-            return dark
-
-        return light
+        return dark if self._user_qt_hint == "dark" else light
 
     #--------------------------------------------------------------------------
     # Theme Inference
@@ -568,7 +551,4 @@ def test_color_brightness(color):
     """
     Test the brightness of a color.
     """
-    if color.lightness() > 255.0/2:
-        return "light"
-    else:
-        return "dark"
+    return "light" if color.lightness() > 255.0/2 else "dark"

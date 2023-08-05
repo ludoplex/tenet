@@ -800,7 +800,7 @@ class TraceReader(object):
                 if maybe_ret_address == trace_address:
                     trace_prev_address = self.analysis.rebase_pointer(bin_prev_address)
                     prev_idx = self.find_prev_execution(trace_prev_address, idx)
-                    did_step_over = bool(prev_idx != -1)
+                    did_step_over = prev_idx != -1
 
             #
             # if it doesn't look like we just returned from a call, we
@@ -1033,9 +1033,12 @@ class TraceReader(object):
                 mem_sets.append((seg.write_idxs, seg.write_addrs, seg.write_masks))
 
             if bp_type == BreakpointType.ACCESS:
-                mem_sets.append((seg.read_idxs, seg.read_addrs, seg.read_masks))
-                mem_sets.append((seg.write_idxs, seg.write_addrs, seg.write_masks))
-
+                mem_sets.extend(
+                    (
+                        (seg.read_idxs, seg.read_addrs, seg.read_masks),
+                        (seg.write_idxs, seg.write_addrs, seg.write_masks),
+                    )
+                )
             # loop through the read / write memory sets for this segment
             for idxs, addrs, masks in mem_sets:
                 search_addrs = addrs
@@ -1105,9 +1108,12 @@ class TraceReader(object):
                 mem_sets.append((seg.write_idxs, seg.write_addrs, seg.write_masks))
 
             if bp_type == BreakpointType.ACCESS:
-                mem_sets.append((seg.read_idxs, seg.read_addrs, seg.read_masks))
-                mem_sets.append((seg.write_idxs, seg.write_addrs, seg.write_masks))
-
+                mem_sets.extend(
+                    (
+                        (seg.read_idxs, seg.read_addrs, seg.read_masks),
+                        (seg.write_idxs, seg.write_addrs, seg.write_masks),
+                    )
+                )
             # loop through the read / write memory sets for this segment
             for idxs, addrs, masks in mem_sets:
                 search_addrs = addrs[::-1]
@@ -1528,7 +1534,7 @@ class TraceReader(object):
                 aligned_address += ADDRESS_ALIGMENT
                 continue
 
-            mask_length = ADDRESS_ALIGMENT if length > ADDRESS_ALIGMENT else length
+            mask_length = min(length, ADDRESS_ALIGMENT)
             access_mask = self.trace.get_aligned_address_mask(aligned_address, mask_length)
             #print(f"aligned: 0x{aligned_address:08X} - mask {access_mask:02X} - mask len {mask_length}")
 
@@ -1586,7 +1592,7 @@ class TraceReader(object):
 
         # sanity checks
         for reg_name in target_registers:
-            if not reg_name in self.arch.REGISTERS:
+            if reg_name not in self.arch.REGISTERS:
                 raise ValueError(f"Invalid register name: '{reg_name}'")
 
         #
@@ -1730,7 +1736,7 @@ class TraceReader(object):
 
         # NOTE: writes should have priority in this list
         mem_sets = \
-        [
+            [
             (seg.read_idxs, seg.read_addrs, seg.read_masks),
             (seg.write_idxs, seg.write_addrs, seg.write_masks),
         ]
@@ -1854,7 +1860,7 @@ class TraceReader(object):
             for mapped_address, missing_mask in missing_mem.items():
 
                 # skip the current address if it doesn't get touched by this seg
-                if not(mapped_address in mem_delta):
+                if mapped_address not in mem_delta:
                     continue
 
                 #
@@ -1924,7 +1930,7 @@ class TraceReader(object):
             idx = self.idx
 
         buffer = self.get_memory(address, self.arch.POINTER_SIZE, idx)
-        if not len(set(buffer.mask)) == 1 and buffer.mask[0] == 0xFF:
+        if len(set(buffer.mask)) != 1 and buffer.mask[0] == 0xFF:
             raise ValueError("Could not fully resolve memory at address")
 
         pack_fmt = 'Q' if self.arch.POINTER_SIZE == 8 else 'I'

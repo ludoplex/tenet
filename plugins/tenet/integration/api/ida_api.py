@@ -133,15 +133,7 @@ class IDACoreAPI(DisassemblerCoreAPI):
         viewer_twidget = viewer.GetWidget()
         viewer_widget = ida_kernwin.PluginForm.TWidgetToPyQtWidget(viewer_twidget)
 
-        # fetch the background color property
-        #viewer.Show() # TODO: re-enable!
-        color = viewer_widget.property("line_bg_default")
-
-        # destroy the view as we no longer need it
-        #viewer.Close()
-
-        # return the color
-        return color
+        return viewer_widget.property("line_bg_default")
 
     def is_msg_inited(self):
         return ida_kernwin.is_msg_inited()
@@ -204,9 +196,7 @@ class IDAContextAPI(DisassemblerContextAPI):
 
     def is_call_insn(self, address):
         insn = ida_ua.insn_t()
-        if ida_ua.decode_insn(insn, address) and ida_idp.is_call_insn(insn):
-            return True
-        return False
+        return bool(ida_ua.decode_insn(insn, address) and ida_idp.is_call_insn(insn))
 
     def get_instruction_addresses(self):
         """
@@ -282,25 +272,21 @@ class IDAContextAPI(DisassemblerContextAPI):
 
     def navigate(self, address):
 
-        # TODO fetch active view? or most recent one? i'm lazy for now...
-        widget = ida_kernwin.find_widget("IDA View-A")
+        if widget := ida_kernwin.find_widget("IDA View-A"):
+            #
+            # this call can both navigate to an arbitrary address, and keep
+            # the cursor position 'static' within the window at an (x,y)
+            # text position
+            #
+            # TODO: I think it's kind of tricky to figure out the 'center' line of
+            # the disassembly window navigation, so for now we'll just make a
+            # navigation call always center around line 20...
+            #
 
-        #
-        # this call can both navigate to an arbitrary address, and keep
-        # the cursor position 'static' within the window at an (x,y)
-        # text position
-        #
-        # TODO: I think it's kind of tricky to figure out the 'center' line of
-        # the disassembly window navigation, so for now we'll just make a
-        # navigation call always center around line 20...
-        #
+            CENTER_AROUND_LINE_INDEX = 20
 
-        CENTER_AROUND_LINE_INDEX = 20
-
-        if widget:
             return ida_kernwin.ea_viewer_history_push_and_jump(widget, address, 0, CENTER_AROUND_LINE_INDEX, 0)
 
-        # ehh, whatever.. just let IDA navigate to yolo
         else:
             return ida_kernwin.jumpto(address)
 
@@ -410,21 +396,14 @@ def map_line2node(cfunc, metadata, line2citem):
             except IndexError as e:
                 continue
 
-            # find the graph node (eg, basic block) that generated this citem
-            node = metadata.get_node(address)
+            if node := metadata.get_node(address):
+                #
+                # we made it this far, so we must have found a node that contains
+                # this citem. save the computed node_id to the list of known
+                # nodes we have associated with this line of text
+                #
 
-            # address not mapped to a node... weird. continue to the next citem
-            if not node:
-                #logger.warning("Failed to map node to basic block")
-                continue
-
-            #
-            # we made it this far, so we must have found a node that contains
-            # this citem. save the computed node_id to the list of known
-            # nodes we have associated with this line of text
-            #
-
-            nodes.add(node.address)
+                nodes.add(node.address)
 
         #
         # finally, save the completed list of node ids as identified for this
@@ -531,20 +510,18 @@ class DockableWindow(ida_kernwin.PluginForm):
 
         if ida_pro.IDA_SDK_VERSION < 760:
             WOPN_SZHINT = 0x200
-        
+
             # create the dockable widget, without actually showing it
             self.Show(self.title, options=ida_kernwin.PluginForm.WOPN_CREATE_ONLY)
 
             # use some kludge to display our widget, and enforce the use of its sizehint
             ida_widget = self.GetWidget()
             ida_kernwin.display_widget(ida_widget, WOPN_SZHINT)
-            self.visible = True
-
-        # no hax required for IDA 7.6 and newer
         else:
             self.Show(self.title)
-            self.visible = True
             dock_position |= ida_kernwin.DP_SZHINT
+
+        self.visible = True
 
         # move the window to a given location if specified
         if dock_position is not None:

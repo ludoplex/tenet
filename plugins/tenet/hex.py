@@ -113,13 +113,9 @@ class HexController(object):
         """
         Navigate the hex view to a given address.
         """
-        if address < 0:
-            address = 0
-
+        address = max(address, 0)
         last_visible_address = address + self.model.data_size
-        if last_visible_address > 0xFFFFFFFFFFFFFFFF:
-            last_visible_address = 0xFFFFFFFFFFFFFFFF
-
+        last_visible_address = min(last_visible_address, 0xFFFFFFFFFFFFFFFF)
         self.model.address = address
 
         #self.reset_selection(0)

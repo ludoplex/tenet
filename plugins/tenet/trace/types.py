@@ -14,9 +14,7 @@ class TraceMemory(object):
         self.mask = array.array('B', [0]) * length
 
     def __contains__(self, address):
-        if self.address <= address < self.end_address:
-            return True
-        return False
+        return self.address <= address < self.end_address
 
     @property
     def end_address(self):

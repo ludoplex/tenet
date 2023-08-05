@@ -51,11 +51,7 @@ class TenetContext(object):
         self.db = db
 
         # select a trace arch based on the binary the disassmbler has loaded
-        if disassembler[self].is_64bit():
-            self.arch = ArchAMD64()
-        else:
-            self.arch = ArchX86()
-        
+        self.arch = ArchAMD64() if disassembler[self].is_64bit() else ArchX86()
         # this will hold the trace reader when a trace has been loaded
         self.reader = None
 
@@ -68,7 +64,7 @@ class TenetContext(object):
 
         # the directory to start the 'load trace file' dialog in
         self._last_directory = None
-        
+
         # whether the plugin subsystems have been created / started
         self._started = False
 
@@ -159,9 +155,7 @@ class TenetContext(object):
         pmsg(f"Loaded trace {self.reader.trace.filepath}")
         pmsg(f"- {self.reader.trace.length:,} instructions...")
 
-        if self.reader.analysis.slide != None:
-            pmsg(f"- {self.reader.analysis.slide:08X} ASLR slide...")
-        else:
+        if self.reader.analysis.slide is None:
             disassembler.warning("Failed to automatically detect ASLR base!\n\nSee console for more info...")
             pmsg(" +------------------------------------------------------")
             pmsg(" |- ERROR: Failed to detect ASLR base for this trace.")
@@ -171,6 +165,8 @@ class TenetContext(object):
             pmsg("   |  your trace is just... very small and Tenet was not confident")
             pmsg("   |  predicting an ASLR slide.")
 
+        else:
+            pmsg(f"- {self.reader.analysis.slide:08X} ASLR slide...")
         #
         # we only hook directly into the disassembler / UI / subsytems once
         # a trace is loaded. this ensures that our python handlers don't
@@ -423,7 +419,7 @@ class TenetContext(object):
         # log the captured (selected) filenames from the dialog
         logger.debug("Captured filenames from file dialog:")
         for name in filenames:
-            logger.debug(" - %s" % name)
+            logger.debug(f" - {name}")
 
         # return the captured filenames
         return filenames

@@ -65,7 +65,7 @@ class TraceBreakpoint(object):
     A simple class to encapsulate the properties of a breakpoint definition.
     """
     def __init__(self, address, access_type=BreakpointType.NONE, length=1):
-        assert not(address is None)
+        assert address is not None
         self.type = access_type
         self.address = address
         self.length = length

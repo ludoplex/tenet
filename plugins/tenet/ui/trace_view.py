@@ -155,9 +155,7 @@ class TraceBar(QtWidgets.QWidget):
         Return the density of idx (instructions) per y-pixel of the trace visualization.
         """
         density = (self.length / (self.height() - self._trace_border * 2))
-        if density > 0:
-            return density
-        return INVALID_DENSITY
+        return density if density > 0 else INVALID_DENSITY
 
     @property
     def viz_rect(self):
@@ -914,12 +912,9 @@ class TraceBar(QtWidgets.QWidget):
         if self._cell_spacing < 0:
             border_color = self.pctx.palette.trace_cell_wall_contrast
 
-        # compute the color to use for the cell bodies
-        if self._cell_spacing < 0:
             ratio = (self._cell_border / (self._cell_height - 1)) * 0.5
             lighten = 100 + int(ratio * 100)
             cell_color = self.pctx.palette.trace_instruction.lighter(lighten)
-            #print(f"Lightened by {lighten}% (Border: {self._cell_border}, Body: {self._cell_height}")
         else:
             cell_color = self.pctx.palette.trace_instruction
 
@@ -1052,7 +1047,7 @@ class TraceBar(QtWidgets.QWidget):
 
         # compute the y coordinate / line to center the user cursor around
         cursor_y = self._idx2pos(self.reader.idx)
-        draw_reader_cursor = bool(cursor_y != INVALID_IDX)
+        draw_reader_cursor = cursor_y != INVALID_IDX
 
         if self.cells_visible:
             cell_y = cursor_y + self._cell_border
@@ -1063,8 +1058,6 @@ class TraceBar(QtWidgets.QWidget):
         top_x = 0
         top_y = cursor_y - (size // 2) # vertically align the triangle so the tip matches the cross section
 
-        # bottom point of the triangle
-        bottom_x = top_x
         bottom_y = top_y + size - 1
 
         # the 'tip' of the triangle pointing into towards the center of the trace
@@ -1074,11 +1067,11 @@ class TraceBar(QtWidgets.QWidget):
         # start drawing from the 'top' of the triangle
         path.moveTo(top_x, top_y)
 
+        bottom_x = top_x
         # generate the triangle path / shape
         path.lineTo(bottom_x, bottom_y)
         path.lineTo(tip_x, tip_y)
-        path.lineTo(top_x, top_y)
-
+        path.lineTo(bottom_x, top_y)
         viz_x, _ = self.viz_pos
         viz_w, _ = self.viz_size
 

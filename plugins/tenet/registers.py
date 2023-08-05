@@ -206,9 +206,7 @@ class RegisterController(object):
         """
         if self._handle_seek_percent(expression):
             return True
-        if self._handle_seek_last(expression):
-            return True
-        return False
+        return bool(self._handle_seek_last(expression))
 
     def _handle_seek_percent(self, expression):
         """
@@ -350,7 +348,7 @@ class RegistersModel(object):
 
         # compute which registers changed as a result of navigation
         unchanged = dict(set(self.registers.items()) & set(registers.items()))
-        self.delta_navigation = set([k for k in registers if k not in unchanged])
+        self.delta_navigation = {k for k in registers if k not in unchanged}
 
         # save the register delta that changed since the previous trace timestamp
         self.delta_trace = delta if delta else []
