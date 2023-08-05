@@ -109,7 +109,7 @@ def hash_file(filepath):
     """
     crc = 0
     with open(filepath, 'rb', 65536) as ins:
-        for x in range(int((os.stat(filepath).st_size / 65536)) + 1):
+        for _ in range(int((os.stat(filepath).st_size / 65536)) + 1):
             crc = zlib.crc32(ins.read(65536), crc)
     return (crc & 0xFFFFFFFF)
 
@@ -361,36 +361,34 @@ class TraceFile(object):
         Return the register delta for a given timestamp.
         """
         seg = self.get_segment(idx)
-        if not seg:
-            return {}
-        return seg.get_reg_delta(idx)
+        return {} if not seg else seg.get_reg_delta(idx)
 
     def get_read_delta(self, idx):
         """
         Return the memory read delta for a given timestamp.
         """
         seg = self.get_segment(idx)
-        if not seg:
-            return {}
-        return seg.get_read_delta(idx)
+        return {} if not seg else seg.get_read_delta(idx)
 
     def get_write_delta(self, idx):
         """
         Return the memory write delta for a given timestamp.
         """
         seg = self.get_segment(idx)
-        if not seg:
-            return {}
-        return seg.get_write_delta(idx)
+        return {} if not seg else seg.get_write_delta(idx)
 
     def get_segment(self, idx):
         """
         Return the trace segment for a given timestamp.
         """
-        for seg in self.segments:
-            if seg.base_idx <= idx < seg.base_idx + seg.length:
-                return seg
-        return None
+        return next(
+            (
+                seg
+                for seg in self.segments
+                if seg.base_idx <= idx < seg.base_idx + seg.length
+            ),
+            None,
+        )
 
     def get_reg_mask_ids_containing(self, reg_name):
         """
@@ -398,13 +396,12 @@ class TraceFile(object):
         """
         reg_id = self.arch.REGISTERS.index(reg_name.upper())
         reg_mask = 1 << reg_id
-        
-        found = set()
-        for i, current_mask in enumerate(self.masks):
-            if current_mask & reg_mask:
-                found.add(i)
-        
-        return found
+
+        return {
+            i
+            for i, current_mask in enumerate(self.masks)
+            if current_mask & reg_mask
+        }
 
     #-------------------------------------------------------------------------
     # Save / Serialization
@@ -510,10 +507,7 @@ class TraceFile(object):
         """
         TODO: Select the trace CPU arch based on the given magic value.
         """
-        if ArchAMD64.MAGIC == magic:
-            self.arch = ArchAMD64()
-        else:
-            self.arch = ArchX86()
+        self.arch = ArchAMD64() if ArchAMD64.MAGIC == magic else ArchX86()
 
     def _fetch_hash(self, filepath):
         """
@@ -636,10 +630,10 @@ class TraceFile(object):
         """
         Return the fully qualified IP for the given timestamp.
         """
-        seg = self.get_segment(idx)
-        if not seg:
+        if seg := self.get_segment(idx):
+            return seg.get_ip(idx)
+        else:
             raise ValueError("Invalid IDX %u" % idx)
-        return seg.get_ip(idx)
 
     def get_mapped_ip(self, ip):
         """
@@ -672,16 +666,13 @@ class TraceFile(object):
         # if we tune it to 32bit vs 64bit (at the cost of possible trace size inflation)
         #
 
-        aligned_address = (address >> 3) << 3 
+        aligned_address = (address >> 3) << 3
         index = bisect.bisect_left(self.mem_addrs, aligned_address)
 
         if index == len(self.mem_addrs):
             return -1
 
-        if aligned_address != self.mem_addrs[index]:
-            return -1
-
-        return index
+        return -1 if aligned_address != self.mem_addrs[index] else index
 
     def get_aligned_address_mask(self, address, length=8):
         """
@@ -690,8 +681,7 @@ class TraceFile(object):
         """
         mask_offset = address % 8
         aligned_address = ((address >> 3) << 3)
-        aligned_mask = (((1 << length) - 1) << mask_offset) & 0xFF
-        return aligned_mask
+        return (((1 << length) - 1) << mask_offset) & 0xFF
 
     def _finalize(self):
         """
@@ -819,38 +809,39 @@ class TraceFile(object):
         self.raw_size += self.num_bytes_unique_mem
 
     def print_stats(self):
-        output = []
-        output.append(f"+- Trace Stats")
-        output.append("")
-        output.append(f" -- {self.length:,} timestamps")
-        output.append(f" -- {len(self.segments):,} segments")
-        output.append("")
-        output.append(f" - Address Stats")
-        output.append("")
-        output.append(f" -- {self.unique_ip:,} total unique ip addresses")
-        output.append(f" ---- {self.avg_unique_ip} avg")
-        output.append(f" ---- {self.min_unique_ip} min")
-        output.append(f" ---- {self.max_unique_ip} max")
-        output.append("")
-        output.append(f" -- {len(self.unique_mem_addr):,} total unique mem addresses")
-        output.append(f" ---- {self.avg_unique_mem_addr} avg")
-        output.append(f" ---- {self.min_unique_mem_addr} min")
-        output.append(f" ---- {self.max_unique_mem_addr} max")
-        output.append("")
-        output.append(f" - Memory / Disk Footprint")
-        output.append("")
-        output.append(f" -- {self.raw_size/(1024*1024):0.2f}mb - raw size")
-        output.append("")
-        output.append(f" ---- {self.num_bytes_unique_ip / (1024*1024):0.2f}mb ({(self.num_bytes_unique_ip / self.raw_size) * 100 :3.2f}%) - ip addrs")
-        output.append(f" ---- {self.num_bytes_unique_mem / (1024*1024):0.2f}mb ({(self.num_bytes_unique_mem / self.raw_size) * 100 :3.2f}%) - mem addrs")
-        output.append(f" ---- {self.num_bytes_ips / (1024*1024):0.2f}mb ({(self.num_bytes_ips / self.raw_size) * 100 :3.2f}%) - ip trace")
-        output.append(f" ---- {self.num_bytes_reg_data / (1024*1024):0.2f}mb ({(self.num_bytes_reg_data / self.raw_size) * 100 :3.2f}%) - reg data")
-        output.append(f" ---- {self.num_bytes_reg_masks / (1024*1024):0.2f}mb ({(self.num_bytes_reg_masks / self.raw_size) * 100 :3.2f}%) - reg masks")
-        output.append("")
-        output.append(f" ---- {self.num_bytes_read / (1024*1024):0.2f}mb ({(self.num_bytes_read / self.raw_size) * 100 :3.2f}%) - bytes read")
-        output.append(f" ---- {self.num_bytes_written / (1024*1024):0.2f}mb ({(self.num_bytes_written / self.raw_size) * 100 :3.2f}%) - bytes written")
-        output.append(f" ---- {self.num_bytes_read_info / (1024*1024):0.2f}mb ({(self.num_bytes_read_info / self.raw_size) * 100 :3.2f}%) - read pointers")
-        output.append(f" ---- {self.num_bytes_written_info / (1024*1024):0.2f}mb ({(self.num_bytes_written_info / self.raw_size) * 100 :3.2f}%) - write pointers")
+        output = [
+            "+- Trace Stats",
+            "",
+            f" -- {self.length:,} timestamps",
+            f" -- {len(self.segments):,} segments",
+            "",
+            " - Address Stats",
+            "",
+            f" -- {self.unique_ip:,} total unique ip addresses",
+            f" ---- {self.avg_unique_ip} avg",
+            f" ---- {self.min_unique_ip} min",
+            f" ---- {self.max_unique_ip} max",
+            "",
+            f" -- {len(self.unique_mem_addr):,} total unique mem addresses",
+            f" ---- {self.avg_unique_mem_addr} avg",
+            f" ---- {self.min_unique_mem_addr} min",
+            f" ---- {self.max_unique_mem_addr} max",
+            "",
+            " - Memory / Disk Footprint",
+            "",
+            f" -- {self.raw_size / (1024 * 1024):0.2f}mb - raw size",
+            "",
+            f" ---- {self.num_bytes_unique_ip / (1024 * 1024):0.2f}mb ({self.num_bytes_unique_ip / self.raw_size * 100:3.2f}%) - ip addrs",
+            f" ---- {self.num_bytes_unique_mem / (1024 * 1024):0.2f}mb ({self.num_bytes_unique_mem / self.raw_size * 100:3.2f}%) - mem addrs",
+            f" ---- {self.num_bytes_ips / (1024 * 1024):0.2f}mb ({self.num_bytes_ips / self.raw_size * 100:3.2f}%) - ip trace",
+            f" ---- {self.num_bytes_reg_data / (1024 * 1024):0.2f}mb ({self.num_bytes_reg_data / self.raw_size * 100:3.2f}%) - reg data",
+            f" ---- {self.num_bytes_reg_masks / (1024 * 1024):0.2f}mb ({self.num_bytes_reg_masks / self.raw_size * 100:3.2f}%) - reg masks",
+            "",
+            f" ---- {self.num_bytes_read / (1024 * 1024):0.2f}mb ({self.num_bytes_read / self.raw_size * 100:3.2f}%) - bytes read",
+            f" ---- {self.num_bytes_written / (1024 * 1024):0.2f}mb ({self.num_bytes_written / self.raw_size * 100:3.2f}%) - bytes written",
+            f" ---- {self.num_bytes_read_info / (1024 * 1024):0.2f}mb ({self.num_bytes_read_info / self.raw_size * 100:3.2f}%) - read pointers",
+            f" ---- {self.num_bytes_written_info / (1024 * 1024):0.2f}mb ({self.num_bytes_written_info / self.raw_size * 100:3.2f}%) - write pointers",
+        ]
         print(''.join(output))
     
 class TraceSegment(object):
@@ -953,11 +944,12 @@ class TraceSegment(object):
         return self.raw_size_bytes / (1024*1024)
 
     def __str__(self):
-        output = []
-        output.append(f"Trace Segment -- IDX {self.base_idx}")
-        output.append(f" -- Reg Data {len(self.reg_data)} bytes ({len(self.reg_data) / (1024*1024):0.2f}mb)")
-        output.append(f" -- Unique IP {len(set(self.ips))}")
-        output.append(f" -- Raw Size {self.raw_size_mb:0.2f}mb")
+        output = [
+            f"Trace Segment -- IDX {self.base_idx}",
+            f" -- Reg Data {len(self.reg_data)} bytes ({len(self.reg_data) / (1024 * 1024):0.2f}mb)",
+            f" -- Unique IP {len(set(self.ips))}",
+            f" -- Raw Size {self.raw_size_mb:0.2f}mb",
+        ]
         return ''.join(output)
 
     #-------------------------------------------------------------------------
@@ -970,13 +962,13 @@ class TraceSegment(object):
         """
 
         # ip storage
-        self.ips = [0 for x in range(self.trace.segment_length)]
+        self.ips = [0 for _ in range(self.trace.segment_length)]
 
         # register storage (minus IP)
         MAX_REG_DATA = self.trace.arch.POINTER_SIZE * len(self.trace.arch.REGISTERS) * self.trace.segment_length
         self.reg_data = bytearray(MAX_REG_DATA)
         self.reg_offsets = array.array("I", [0] * REG_OFFSET_CACHE_SIZE)
-        self.reg_masks = [0 for x in range(self.trace.segment_length)]
+        self.reg_masks = [0 for _ in range(self.trace.segment_length)]
         self._reg_offset = 0
 
         # memory defs
@@ -1018,7 +1010,7 @@ class TraceSegment(object):
         # if no registers changed, nothing to do but return IP
         if not mask:
             return {self.trace.arch.IP: ip_address}
-        
+
         # 
         # fetch the closest cached register data offset that we can start from
         # for computing precisely where we should be working backwards from
@@ -1031,7 +1023,7 @@ class TraceSegment(object):
         # compute the current 'offset' in the reg data that we will work back from
         sizes = self.trace.mask_sizes
         offset_masks = self.reg_masks[cache_idx:relative_idx][::-1]
-        offset = cache_offset + sum([sizes[mask_id] for mask_id in offset_masks])
+        offset = cache_offset + sum(sizes[mask_id] for mask_id in offset_masks)
 
         # compute the location of the packed register delta data
         #offset_slow = sum([sizes[mask_id] for mask_id in self.reg_masks[:relative_idx]])
@@ -1143,14 +1135,14 @@ class TraceSegment(object):
         cache_index = int(start_idx / REG_OFFSET_CACHE_INTERVAL)
         cache_offset = self.reg_offsets[cache_index]
         cache_idx = cache_index * REG_OFFSET_CACHE_INTERVAL
-        
+
         # alias for faster access / readability
         sizes = self.trace.mask_sizes
         masks = self.trace.masks
 
         # compute the current 'offset' in the reg data that we will work back from
         offset_masks = self.reg_masks[cache_idx:start_idx][::-1]
-        offset = cache_offset + sum([sizes[mask_id] for mask_id in offset_masks])
+        offset = cache_offset + sum(sizes[mask_id] for mask_id in offset_masks)
 
         # the map of reg_name --> (reg_value, src_idx) to return
         found_registers = {}
@@ -1580,14 +1572,12 @@ class TraceSegment(object):
                 self.read_data += access_data
                 #self._max_read_size = max(self._max_read_size, data_len)
 
-            # write
             elif access_type == 'MW':
                 self._mem_write_info.append((relative_idx, mapped_address, access_mask))
                 self.write_data += access_data
                 #print(self._mem_write_info[-1], hexdump(data), "REAL OFFSET", len(self.write_data)-len(data))
                 #self._max_write_size = max(self._max_write_size, data_len)
 
-            # read AND write (eg, inc [rax])
             elif access_type == 'MRW':
 
                 # read
@@ -1601,7 +1591,7 @@ class TraceSegment(object):
                 #self._max_write_size = max(self._max_write_size, data_len)
 
             else:
-                raise ValueError("Unknown field in trace: '%s=...'" % access_type)
+                raise ValueError(f"Unknown field in trace: '{access_type}=...'")
 
             mv = self.mem_delta[mapped_address]
             mv.mask |= access_mask
@@ -1714,11 +1704,7 @@ class TraceSegment(object):
         pack_fmt = 'Q' if self.arch.POINTER_SIZE == 8 else 'I'
         reg_values = struct.unpack(pack_fmt * num_regs, reg_data)
 
-        # pack all the registers into a dict that will be returned to the user
-        registers = dict(zip(reg_names, reg_values))
-
-        # return the completed register delta
-        return registers
+        return dict(zip(reg_names, reg_values))
 
     #-------------------------------------------------------------------------
     # Util

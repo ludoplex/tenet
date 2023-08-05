@@ -14,7 +14,7 @@ disassembler = None
 # IDA API Shim
 #--------------------------------------------------------------------------
 
-if disassembler == None:
+if disassembler is None:
     from .ida_api import IDACoreAPI, IDAContextAPI, DockableWindow
     disassembler = IDACoreAPI()
     DisassemblerContextAPI = IDAContextAPI
@@ -35,6 +35,6 @@ if disassembler == None:
 # Unknown Disassembler
 #--------------------------------------------------------------------------
 
-if disassembler == None:
+if disassembler is None:
     raise NotImplementedError("Unknown or unsupported disassembler!")
 

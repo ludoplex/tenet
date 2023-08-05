@@ -70,7 +70,7 @@ class TenetCore(object):
         if not self.loaded:
             return
 
-        pmsg("Unloading %s..." % self.PLUGIN_NAME)
+        pmsg(f"Unloading {self.PLUGIN_NAME}...")
 
         # mark the core as 'unloaded' and teardown its components
         self.loaded = False
@@ -238,7 +238,7 @@ class TenetCore(object):
         """
         Refresh UI facing elements to reflect the current theme.
         """
-        for pctx in self.contexts.values():
+        for _ in self.contexts.values():
             pass # TODO
 
     def check_for_update(self):

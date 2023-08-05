@@ -215,16 +215,11 @@ class TraceAnalysis(object):
         trace, ips = self._trace, self._trace.ip_addrs
         lower_mapped, upper_mapped = self._remapped_regions[0][1]
 
-        #
-        # for speed, pull out the 'compressed' ip indexes that matched mapped
-        # (known) addresses within the disassembler context
-        #
-
-        mapped_ips = set()
-        for i, address in enumerate(ips):
-            if lower_mapped <= address <= upper_mapped:
-                mapped_ips.add(i)
-
+        mapped_ips = {
+            i
+            for i, address in enumerate(ips)
+            if lower_mapped <= address <= upper_mapped
+        }
         last_good_idx = 0
         unmapped_entries = []
 
@@ -238,16 +233,12 @@ class TraceAnalysis(object):
                 compressed_ip = seg_ips[relative_idx]
 
                 # the current instruction is in an unmapped region
-                if compressed_ip not in mapped_ips:
-
-                    # if we were in a known/mapped region previously, then save it
-                    if last_good_idx:
-                        unmapped_entries.append(last_good_idx)
-                        last_good_idx = 0
-
-                # if we are in a good / mapped region, update our current idx
-                else:
+                if compressed_ip in mapped_ips:
                     last_good_idx = seg_base + relative_idx
+
+                elif last_good_idx:
+                    unmapped_entries.append(last_good_idx)
+                    last_good_idx = 0
 
         #print(f" - Unmapped Entry Points: {len(unmapped_entries)}")
         self._unmapped_entry_points = unmapped_entries

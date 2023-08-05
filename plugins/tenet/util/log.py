@@ -15,7 +15,7 @@ def pmsg(message):
     """
 
     # prefix the message
-    prefix_message = "[Tenet] %s" % message
+    prefix_message = f"[Tenet] {message}"
 
     # only print to disassembler if its output window is alive
     if disassembler.is_msg_inited():
@@ -27,11 +27,9 @@ def get_log_dir():
     """
     Return the plugin log directory.
     """
-    log_directory = os.path.join(
-        disassembler.get_disassembler_user_directory(),
-        "tenet_logs"
+    return os.path.join(
+        disassembler.get_disassembler_user_directory(), "tenet_logs"
     )
-    return log_directory
 
 def logging_started():
     """
@@ -97,7 +95,7 @@ def cleanup_log_directory(log_directory):
         try:
             os.remove(filetimes[log_time])
         except Exception as e:
-            logger.error("Failed to delete log %s" % filetimes[log_time])
+            logger.error(f"Failed to delete log {filetimes[log_time]}")
             logger.error(e)
 
 def start_logging():
@@ -124,7 +122,7 @@ def start_logging():
         return logger
 
     # construct the full log path
-    log_path = os.path.join(log_dir, "tenet.%s.log" % os.getpid())
+    log_path = os.path.join(log_dir, f"tenet.{os.getpid()}.log")
 
     # config the logger
     logging.basicConfig(

@@ -59,12 +59,12 @@ class StackController(HexController):
             return False
 
         # ensure the carved data is fully resolved (e.g. there are no unknown bytes)
-        if not (len(mask) == POINTER_SIZE and list(set(mask)) == [0xFF]):
+        if len(mask) != POINTER_SIZE or list(set(mask)) != [0xFF]:
             return False
 
         # unpack the carved data as a pointer
         parsed_address = struct.unpack("I" if POINTER_SIZE == 4 else "Q", data)[0]
-        
+
         # navigate the memory dump window to the 'pointer' we carved off the stack
         self.pctx.memory.navigate(parsed_address)
     

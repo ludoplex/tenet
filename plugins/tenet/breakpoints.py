@@ -171,12 +171,9 @@ class BreakpointModel(object):
         """
         Return an iterable list of all memory breakpoints.
         """
-        bps = itertools.chain(
-            self.bp_read.values(),
-            self.bp_write.values(),
-            self.bp_access.values()
+        return itertools.chain(
+            self.bp_read.values(), self.bp_write.values(), self.bp_access.values()
         )
-        return bps
 
     #----------------------------------------------------------------------
     # Callbacks

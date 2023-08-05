@@ -27,7 +27,7 @@ USING_PYSIDE2 = False
 #------------------------------------------------------------------------------
 
 # attempt to load PyQt5
-if QT_AVAILABLE == False:
+if not QT_AVAILABLE:
     try:
         import PyQt5.QtGui as QtGui
         import PyQt5.QtCore as QtCore
@@ -47,7 +47,7 @@ if QT_AVAILABLE == False:
 #------------------------------------------------------------------------------
 
 # if PyQt5 did not import, try to load PySide
-if QT_AVAILABLE == False:
+if not QT_AVAILABLE:
     try:
         import PySide2.QtGui as QtGui
         import PySide2.QtCore as QtCore

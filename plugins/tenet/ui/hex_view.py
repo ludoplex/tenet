@@ -126,8 +126,7 @@ class HexView(QtWidgets.QAbstractScrollArea):
         area_size = self.viewport().size()
         first_line_idx = self.verticalScrollBar().value()
         last_line_idx = (first_line_idx + area_size.height() // self._char_height) + 1
-        lines_visible = last_line_idx - first_line_idx
-        return lines_visible
+        return last_line_idx - first_line_idx
 
     @property
     def num_bytes_visible(self):
@@ -153,11 +152,14 @@ class HexView(QtWidgets.QAbstractScrollArea):
         if self.hovered_address == INVALID_ADDRESS:
             return None
 
-        for bp in self.model.memory_breakpoints:
-            if bp.address <= self.hovered_address < bp.address + bp.length:
-                return bp
-
-        return None
+        return next(
+            (
+                bp
+                for bp in self.model.memory_breakpoints
+                if bp.address <= self.hovered_address < bp.address + bp.length
+            ),
+            None,
+        )
 
     #-------------------------------------------------------------------------
     # Internal
@@ -274,24 +276,14 @@ class HexView(QtWidgets.QAbstractScrollArea):
 
         # compute the line number (the y-axis) that the point falls within
         byte_y = position.y() // self._char_height
-        #print("- Byte (X, Y)", byte_x, byte_y)
-
-        # compute the final byte index from the start address in the window
-        byte_index = (byte_y * self.model.num_bytes_per_line) + byte_x
-        #print("- Byte Index", byte_index)
-
-        return byte_index
+        return (byte_y * self.model.num_bytes_per_line) + byte_x
 
     def point_to_address(self, position):
         """
         Convert a QPoint (x, y) on the hex view window to an address.
         """
         byte_index = self.point_to_index(position)
-        if byte_index == -1:
-            return INVALID_ADDRESS
-
-        byte_address = self.model.address + byte_index
-        return byte_address
+        return INVALID_ADDRESS if byte_index == -1 else self.model.address + byte_index
 
     def point_to_breakpoint(self, position):
         """
@@ -301,11 +293,14 @@ class HexView(QtWidgets.QAbstractScrollArea):
         if byte_address == INVALID_ADDRESS:
             return None
 
-        for bp in self.model.memory_breakpoints:
-            if bp.address <= byte_address < bp.address + bp.length:
-                return bp
-
-        return None
+        return next(
+            (
+                bp
+                for bp in self.model.memory_breakpoints
+                if bp.address <= byte_address < bp.address + bp.length
+            ),
+            None,
+        )
 
     def reset_selection(self):
         """
@@ -602,7 +597,7 @@ class HexView(QtWidgets.QAbstractScrollArea):
         if e.key() == QtCore.Qt.Key_G:
             import ida_kernwin, ida_idaapi
             address = ida_kernwin.ask_addr(self.model.address, "Jump to address in memory")
-            if address != None and address != ida_idaapi.BADADDR:
+            if address not in [None, ida_idaapi.BADADDR]:
                 self.controller.navigate(address)
             e.accept()
         return super(HexView, self).keyPressEvent(e)
@@ -722,9 +717,7 @@ class HexView(QtWidgets.QAbstractScrollArea):
 
         # clamp the address from 0 to 0xFFFFFFFFFFFFFFFF
         address = self.model.address + (line_idx * self.model.num_bytes_per_line)
-        if address > 0xFFFFFFFFFFFFFFFF:
-            address = 0xFFFFFFFFFFFFFFFF
-
+        address = min(address, 0xFFFFFFFFFFFFFFFF)
         address_color = self._palette.hex_address_fg
         if address < self.model.fade_address:
             address_color = self._palette.hex_text_faded_fg
@@ -758,9 +751,9 @@ class HexView(QtWidgets.QAbstractScrollArea):
         #
 
         byte_idx = byte_base_idx
-        x_pos_aux = self._pos_aux + self._char_width
-
         if self.model.aux_format == AuxType.ASCII:
+
+            x_pos_aux = self._pos_aux + self._char_width
 
             for i in range(byte_base_idx, stop_idx):
 
@@ -770,11 +763,7 @@ class HexView(QtWidgets.QAbstractScrollArea):
                     painter.setPen(self._palette.hex_text_faded_fg)
 
                 ch = self.model.data[i]
-                if ((ch < 0x20) or (ch > 0x7e)):
-                    ch = '.'
-                else:
-                    ch = chr(ch)
-
+                ch = '.' if ((ch < 0x20) or (ch > 0x7e)) else chr(ch)
                 painter.drawText(x_pos_aux, y, ch)
                 x_pos_aux += self._char_width
 
@@ -799,7 +788,7 @@ class HexView(QtWidgets.QAbstractScrollArea):
         elif self.model.hex_format == HexType.MAGIC:
             return self._paint_magic(painter, byte_idx, stop_idx, x, y)
 
-        raise NotImplementedError("Unknown HexType format! %s" % self.model.hex_format)
+        raise NotImplementedError(f"Unknown HexType format! {self.model.hex_format}")
 
         #return (byte_idx, x, y)
 

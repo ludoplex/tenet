@@ -357,7 +357,7 @@ class RegisterArea(QtWidgets.QAbstractScrollArea):
                 return
 
             # ignore if the double clicked field (register) was not the IP reg
-            if not (field and field.name == self.model.arch.IP):
+            if field.name != self.model.arch.IP:
                 return
 
             # ignore if the double click was not on the reg value
@@ -454,12 +454,6 @@ class RegisterArea(QtWidgets.QAbstractScrollArea):
             if reg_name in self.model.delta_trace:
                 painter.setPen(self.pctx.palette.reg_changed_trace_fg)
 
-            # color register if its value changed as a result of navigation
-            # TODO: disabled for now, because it seemed more confusing than helpful...
-            elif reg_name in self.model.delta_navigation and False:
-                painter.setPen(self.pctx.palette.reg_changed_navigation_fg)
-
-            # no special highlighting, default register value color text
             else:
                 painter.setPen(self.pctx.palette.reg_value_fg)
 
@@ -467,16 +461,12 @@ class RegisterArea(QtWidgets.QAbstractScrollArea):
             if reg_name == self.model.focused_reg_value:
                 painter.setPen(self.pctx.palette.standard_selection_fg)
                 painter.setBackground(brush_selected)
-                painter.setBackgroundMode(QtCore.Qt.OpaqueMode)
-
-            # default / unselected register colors
             else:
                 painter.setBackground(brush_defualt)
-                painter.setBackgroundMode(QtCore.Qt.OpaqueMode)
+            painter.setBackgroundMode(QtCore.Qt.OpaqueMode)
 
-            # special highlighting of the instruction pointer if it matches an active breakpoint
-            if reg_name == self.model.arch.IP:
-                if reg_value in self.model.execution_breakpoints:
+            if reg_value in self.model.execution_breakpoints:
+                if reg_name == self.model.arch.IP:
                     painter.setPen(self.pctx.palette.navigation_selection_fg)
                     painter.setBackground(self.pctx.palette.navigation_selection_bg)
 
